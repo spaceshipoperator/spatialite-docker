@@ -6,7 +6,7 @@ RUN echo "@edge-testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /e
 RUN apk update && \
   apk --no-cache --update upgrade musl && \
   apk add --upgrade --force-overwrite apk-tools@edge && \
-  apk add --update --force-overwrite wget gcc make automake libtool autoconf curl fossil git libc-dev sqlite-dev zlib-dev libxml2-dev "proj-dev@edge-testing" "geos-dev@edge-testing" "gdal-dev@edge-testing" "gdal@edge-testing" expat-dev readline-dev ncurses-dev readline ncurses-static libc6-compat && \
+  apk add --update --force-overwrite wget gcc make automake libtool autoconf curl fossil git libc-dev sqlite sqlite-dev zlib-dev libxml2-dev "proj-dev@edge-testing" "geos-dev@edge-testing" "gdal-dev@edge-testing" "gdal@edge-testing" expat-dev readline-dev ncurses-dev readline ncurses-static libc6-compat && \
   rm -rf /var/cache/apk/*
 
 ENV USER me
@@ -15,7 +15,8 @@ RUN fossil clone https://www.gaia-gis.it/fossil/freexl freexl.fossil && mkdir fr
 
 RUN git clone "https://git.osgeo.org/gitea/rttopo/librttopo.git" && cd librttopo && ./autogen.sh && ./configure && make -j8 && make install
 
-RUN fossil clone https://www.gaia-gis.it/fossil/libspatialite libspatialite.fossil && mkdir libspatialite && cd libspatialite && fossil open ../libspatialite.fossil && ./configure --enable-rttopo --enable-geocallbacks --enable-gcp=yes --enable-libxml2 && make -j8 && make install
+ENV CPPFLAGS "-DACCEPT_USE_OF_DEPRECATED_PROJ_API_H"
+RUN fossil clone https://www.gaia-gis.it/fossil/libspatialite libspatialite.fossil && mkdir libspatialite && cd libspatialite && fossil open ../libspatialite.fossil && ./configure --disable-dependency-tracking --enable-rttopo=yes --enable-proj=yes --enable-geos=yes --enable-gcp=yes --enable-libxml2=yes && make -j8 && make install
 
 RUN fossil clone https://www.gaia-gis.it/fossil/readosm readosm.fossil && mkdir readosm && cd readosm && fossil open ../readosm.fossil && ./configure && make -j8 && make install
 
@@ -29,6 +30,8 @@ FROM alpine
 
 # copy libs (maintaining symlinks)
 COPY --from=build /usr/lib/ /usr/lib
+COPY --from=build /usr/bin/ /usr/bin
+COPY --from=build /usr/share/proj/proj.db /usr/share/proj/proj.db
 
 # remove broken symlinks
 RUN find -L /usr/lib -maxdepth 1 -type l -delete
